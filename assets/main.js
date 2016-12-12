@@ -1,3 +1,5 @@
+const simplex = new SimplexNoise(Math.random);
+
 const sampledNotes = {
   "A" : "./assets/sounds/casio/A1.mp3",
   "C#" : "./assets/sounds/casio/Cs2.mp3",
@@ -16,7 +18,7 @@ const sampledBass = {
 const memberKeys = new Tone.MultiPlayer({
   urls : sampledNotes,
   volume : -12,
-  fadeOut : 0.1,
+  fadeOut : 0.2,
 }).toMaster();
 // .connect(memberPan).sync();
 
@@ -35,8 +37,10 @@ function ratioToPan(ratio){
   return ratio * range - range/2;
 }
 
-function getRandomSound(sounds){
-  return sounds[_.random(0, sounds.length - 1)];
+function getNoisySound(time, sounds){
+  const noisy = simplex.noise2D(time, 0);
+  const noisyIndex = (noisy + 1) / 2 * sounds.length;
+  return sounds[Math.round(noisyIndex)];
 }
 
 function processData(file, onCompletion){
@@ -127,13 +131,13 @@ class Meetup {
   set members(data){
     this._members = data;
     _.forEach(data, function(member, iter){
-      Tone.Transport.scheduleOnce(function(){
+      Tone.Transport.scheduleOnce(function(time){
         // memberPan.setPosition(
         //   ratioToPan(member.time.daysRatio),
         //   ratioToPan(member.time.monthsRatio),
         //   0
         // );
-        memberKeys.start(getRandomSound(memberNotes));
+        memberKeys.start(getNoisySound(time, memberNotes));
       }, member.time.ratio);
     });
     this.interestCounts = _(this._members)
