@@ -78,10 +78,23 @@ class Meetup {
     this.title = document.getElementById('title');
     this.playButton = document.getElementById('play');
 
+    this.setupInterface();
+  }
+
+  setupInterface(){
     this.playButton.addEventListener('click', this.start.bind(this));
-    this.playButton.querySelector('a').addEventListener('click', function(clickEvent){
-      clickEvent.stopPropagation();
+    _.map(this.playButton.querySelectorAll('a'), function(clickableElement){
+      clickableElement.addEventListener('click', function(clickEvent){
+        clickEvent.stopPropagation();
+      });
     });
+    _.map(this.playButton.querySelectorAll('.legend'), (legend) => {
+      legend.addEventListener('click', (clickEvent) => {
+        clickEvent.stopPropagation();
+        this.play(legend.dataset.type);
+      });
+    });
+
 
 
     const pause = this.pause.bind(this);
@@ -106,20 +119,11 @@ class Meetup {
   }
 
   set events(data){
-    _.forEach(data, function(meetup){
-      Tone.Transport.scheduleOnce(function(time){
+    _.forEach(data, (meetup) => {
+      Tone.Transport.scheduleOnce( (time) => {
         title.innerText = meetup.name;
         title.dataset.type = meetup.type;
-        // eventPan.setPosition(
-        //   ratioToPan(meetup.time.daysRatio),
-        //   ratioToPan(meetup.time.monthsRatio),
-        //   0
-        // );
-        if(typeToDrum[meetup.type] === 'high-hat'){
-          eventBass.start(typeToDrum[meetup.type], time, 0, 0.1);
-        } else {
-          eventBass.start(typeToDrum[meetup.type]);
-        }
+        this.play(meetup.type, time);
       }, meetup.time.ratio);
     });
     this._events = data;
@@ -130,14 +134,9 @@ class Meetup {
 
   set members(data){
     this._members = data;
-    _.forEach(data, function(member, iter){
-      Tone.Transport.scheduleOnce(function(time){
-        // memberPan.setPosition(
-        //   ratioToPan(member.time.daysRatio),
-        //   ratioToPan(member.time.monthsRatio),
-        //   0
-        // );
-        memberKeys.start(getNoisySound(time, memberNotes));
+    _.forEach(data, (member, iter) => {
+      Tone.Transport.scheduleOnce( (time) => {
+        this.play('member', time);
       }, member.time.ratio);
     });
     this.interestCounts = _(this._members)
@@ -151,6 +150,19 @@ class Meetup {
   }
   get members(){
     return this._members;
+  }
+
+  play(type, time){
+    if(type === 'member'){
+      time = time ? time : new Date() * 1;
+      memberKeys.start(getNoisySound(time, memberNotes));
+    } else {
+      if(typeToDrum[type] === 'high-hat' && time){
+        eventBass.start(typeToDrum[type], time, 0, 0.1);
+      } else {
+        eventBass.start(typeToDrum[type]);
+      }
+    }
   }
 
   start(){
