@@ -1,0 +1,78 @@
+html, body {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 24px;
+  font-weight: 100;
+  color: #333;
+}
+
+body, #play {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Playfair Display', serif;
+}
+
+#title,
+#play {
+  transition: 200ms opacity ease-in-out, 500ms background-color ease-in-out;
+}
+
+#title {
+  text-align: center;
+  max-width: 80%;
+}
+
+#play {
+  text-align: center;
+  cursor: pointer;
+  background-color: #370069;
+  color: #FFF;
+  width: 100%;
+  height: 100%;
+}
+
+#play a {
+  color: inherit;
+  text-decoration: none;
+  transition: 200ms color ease-in-out, 200ms background-color ease-in-out;
+  display: inline-block;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #FFF;
+}
+
+#play a:hover {
+  color: rgba(85,26,139, 1);
+  background-color: #FFF;
+}
+
+#play:hover {
+  background-color: rgba(85,26,139, 1);
+}
+
+.fade {
+  opacity: 0;
+}
+
+.hide, #play.hide {
+  display: none;
+}
+
+[data-type=monthly] {
+  color: rgba(85,26,139, 1);
+}
+
+[data-type=data-jam] {
+  color: blue;
+}
+
+[data-type=other] {
+  color: hotpink;
+}
