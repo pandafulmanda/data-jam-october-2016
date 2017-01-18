@@ -77,6 +77,15 @@ class Meetup {
   constructor (){
     this.title = document.getElementById('title');
     this.playButton = document.getElementById('play');
+    this.track = document.getElementById('track');
+    this.tracker = document.createElement('div');
+    this.tracker.classList.add('tracker');
+
+    this.trackerEvent = this.tracker.cloneNode();
+    this.trackerEvent.classList.add('tracker-event');
+
+    this.trackerMember = this.tracker.cloneNode();
+    this.trackerMember.classList.add('tracker-member');
 
     this.setupInterface();
   }
@@ -94,8 +103,6 @@ class Meetup {
         this.play(legend.dataset.type);
       });
     });
-
-
 
     const pause = this.pause.bind(this);
     const start = this.start.bind(this);
@@ -119,14 +126,8 @@ class Meetup {
   }
 
   set events(data){
-    _.forEach(data, (meetup) => {
-      Tone.Transport.scheduleOnce( (time) => {
-        title.innerText = meetup.name;
-        title.dataset.type = meetup.type;
-        this.play(meetup.type, time);
-      }, meetup.time.ratio);
-    });
     this._events = data;
+    this.setup();
   }
   get events(){
     return this._events;
@@ -134,22 +135,67 @@ class Meetup {
 
   set members(data){
     this._members = data;
-    _.forEach(data, (member, iter) => {
-      Tone.Transport.scheduleOnce( (time) => {
-        this.play('member', time);
-      }, member.time.ratio);
-    });
     this.interestCounts = _(this._members)
       .map('Interests')
       .flattenDeep()
       .compact()
       .countBy('name')
       .value();
-
-    Tone.Transport.bpm.value = 40;
+    this.setup();
   }
   get members(){
     return this._members;
+  }
+
+  get timeStart(){
+    return moment.min(this._events[0].time.moment, this._members[0].time.moment);
+  }
+  get timeStartMonth(){
+    return this.timeStart.clone().startOf('month');
+  }
+  get timeEnd(){
+    return moment.max(_.last(this._events).time.moment, _.last(this._members).time.moment);
+  }
+  get range(){
+    return this.timeEnd.diff(this.timeStart);
+  }
+
+  setup(){
+    if(!this._events || !this._members){
+      return;
+    }
+    _.forEach(this.events, (meetup) => {
+      let xPos = meetup.time.moment.diff(this.timeStart) / this.range * window.innerWidth;
+      let trackerEvent = this.trackerEvent.cloneNode();
+      trackerEvent.dataset.type = meetup.type;
+      trackerEvent.style.left = xPos + 'px';
+
+      meetup.time.ratio = calculateMonthDayRatio(meetup.time.moment, this.timeStartMonth);
+
+      Tone.Transport.scheduleOnce( (time) => {
+        title.innerText = meetup.name;
+        title.dataset.type = meetup.type;
+        this.play(meetup.type, time);
+        this.track.appendChild(trackerEvent);
+      }, meetup.time.ratio);
+    });
+
+    _.forEach(this.members, (member, iter) => {
+      let xPos = member.time.moment.diff(this.timeStart) / this.range * window.innerWidth;
+      let randYPos = Math.abs(simplex.noise2D(Math.random(), 0)) * 30 + 5;
+      let trackerMember = this.trackerMember.cloneNode();
+      trackerMember.style.left = xPos + 'px';
+      trackerMember.style.top = randYPos + 'px';
+      trackerMember.style.background = '#'+Math.floor(Math.abs(simplex.noise2D(Math.random(), 0))*16777215).toString(16);
+
+      member.time.ratio = calculateMonthDayRatio(member.time.moment, this.timeStartMonth);
+
+      Tone.Transport.scheduleOnce( (time) => {
+        this.play('member', time);
+        this.track.appendChild(trackerMember);
+      }, member.time.ratio);
+    });
+    Tone.Transport.bpm.value = 40;
   }
 
   play(type, time){
@@ -194,7 +240,7 @@ function getMonthRatio(date){
 
 function processThingBase(thing, timeProperty, ...properties){
   let simpleData = _.pick(thing, ...properties);
-  let thingMoment = moment(parseInt(thing[timeProperty]));
+  let thingMoment = moment(parseInt(thing[timeProperty]) + parseInt(thing.utc_offset || 0));
   simpleData.time = {
     original: thing[timeProperty],
     moment: thingMoment,
@@ -226,31 +272,13 @@ function processMeetup(thing, timeProperty, ...properties){
   return meetup;
 }
 
-function setDifferences(sortedThings){
-  var startMonthMoment = sortedThings[0].time.moment.clone().startOf('month');
-  var endMonthMoment = _.last(sortedThings).time.moment.clone().startOf('month');
-  var totalMonths = endMonthMoment.diff(startMonthMoment, 'month');
-
-  _.forEach(sortedThings, function(thing, index){
-    if(index > 0){
-      thing.time.difference = thing.time.moment.diff(sortedThings[index - 1].time.moment);
-      thing.time.from = thing.time.moment.from(sortedThings[index - 1].time.moment);
-    } else {
-      thing.time.difference = 0;
-      thing.time.from = 'none';
-    }
-    thing.time.sinceStart = thing.time.moment.diff(sortedThings[0].time.moment);
-    thing.time.daysRatio = getMonthRatio(thing.time.moment);
-    thing.time.monthsRatio = thing.time.moment.diff(startMonthMoment, 'month') / totalMonths;
-    thing.time.ratio = thing.time.moment.diff(startMonthMoment, 'month') + thing.time.daysRatio;
-  });
+function calculateMonthDayRatio(timeMoment, timeStartMonth){
+  return timeMoment.diff(timeStartMonth, 'month') + getMonthRatio(timeMoment);
 }
 
 function processThings(things, processThing, timeProperty, ...properties){
   let formatted = _.map(things, _.partial(processThing, _, timeProperty, ...properties));
   let sortedData = _.sortBy(formatted, 'time.milliseconds');
-
-  setDifferences(sortedData);
 
   return sortedData;
 }
